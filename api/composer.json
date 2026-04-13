@@ -4,7 +4,10 @@
         "psr-4": {
             "Core\\": "core/",
             "App\\": "app/"
-        }
+        },
+        "files": [
+            "app/helpers/functions/dd.php"
+        ]
     },
     "require": {
         "vlucas/phpdotenv": "^5.6"
