@@ -2,6 +2,8 @@
 
 namespace Core;
 
+use App\Helpers\Response;
+
 class Router
 {
   private static $routes = [];
@@ -45,9 +47,15 @@ class Router
         break;
       }
     }
+
+    if ($_SERVER['REQUEST_METHOD'] !== $method) {
+      Response::json(['error' => 'Method Not Allowed'], 405);
+      return;
+    }
+
     $action = self::$routes[$method][$pathMatch] ?? false;
     if (!$action) {
-      echo "404 Not Found";
+      Response::json(['error' => 'Not Found'], 404);
       return;
     }
     // check middleware

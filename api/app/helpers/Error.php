@@ -7,27 +7,29 @@ use Throwable;
 
 class Error
 {
-  protected static string $logFile = __DIR__ . '/../../storage/logs/api.log';
+  protected static string $logFile = __DIR__ . '/../../storage/logs/php.log';
 
   public static function handle()
   {
+    // 1. Luôn báo cáo tất cả lỗi, nhưng việc hiển thị sẽ do chúng ta kiểm soát
     error_reporting(E_ALL);
-    ini_set('display_errors', '0');
+    ini_set('display_errors', '0'); // Tắt hiển thị mặc định của PHP
 
-    // Biến các lỗi hệ thống (Warning, Notice) thành Exception
+    // 2. Bắt các lỗi runtime (Warning, Notice...) và biến chúng thành Exception
     set_error_handler(function ($errno, $errstr, $errfile, $errline) {
       if (!(error_reporting() & $errno)) return;
       throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
     });
 
-    // Xử lý các Exception chưa được catch
+    // 3. Bắt các Exception chưa được xử lý (Uncaught Exceptions)
     set_exception_handler(function (Throwable $e) {
       self::render($e);
     });
 
-    // Xử lý lỗi Fatal (lỗi chết người)
+    // 4. Bắt các lỗi Fatal (Lỗi chết người khiến script dừng ngay lập tức)
     register_shutdown_function(function () {
       $error = error_get_last();
+      // Chỉ bắt các lỗi nghiêm trọng (Fatal, Parse, Core, Compile)
       if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
         self::render(new ErrorException(
           $error['message'],
@@ -42,47 +44,36 @@ class Error
 
   public static function render(Throwable $e)
   {
-    // Xóa sạch buffer để không lẫn lộn giữa JSON và các output trước đó
+
     if (ob_get_length()) ob_clean();
 
-    // Luôn ghi log để truy vết sau này
+    // Ghi log lỗi
     self::log($e);
 
-    // Thiết lập header trả về JSON
-    header('Content-Type: application/json; charset=utf-8');
-
-    // Xác định HTTP Status Code (Mặc định 500)
-    $statusCode = method_exists($e, 'getCode') && $e->getCode() >= 400 && $e->getCode() < 600
-      ? $e->getCode()
-      : 500;
-
-    http_response_code($statusCode);
+    // Thiết lập HTTP Header 500
+    if (!headers_sent()) {
+      header('HTTP/1.1 500 Internal Server Error', true, 500);
+    }
 
     $isDebug = filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-    $response = [
-      'status'  => 'error',
-      'code'    => $statusCode,
-      'message' => $isDebug ? $e->getMessage() : 'Internal Server Error'
-    ];
-
-    // Nếu đang ở môi trường phát triển (Debug), trả về chi tiết lỗi
     if ($isDebug) {
-      $response['debug'] = [
-        'type'    => get_class($e),
-        'file'    => $e->getFile(),
-        'line'    => $e->getLine(),
-        'trace'   => explode("\n", $e->getTraceAsString()) // Tách dòng cho dễ đọc trên Postman
-      ];
+      Response::json([
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
+      ], 500);
+    } else {
+      Response::json(['error' => 'Internal Server Error'], 500);
     }
 
-    echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
   }
 
   private static function log(Throwable $e)
   {
-    $shouldLog = filter_var($_ENV['APP_LOG'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    $shouldLog = filter_var($_ENV['APP_LOG'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
     if ($shouldLog) {
       $logDir = dirname(self::$logFile);

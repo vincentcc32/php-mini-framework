@@ -62,6 +62,80 @@ class QueryBuilder
     return $this;
   }
 
+  public function whereIn(string $column, array $values): self
+  {
+    $placeholders = implode(', ', array_fill(0, count($values), '?'));
+    $this->where[] = "{$column} IN ({$placeholders})";
+    $this->bindings = array_merge($this->bindings, $values);
+    return $this;
+  }
+
+  public function whereNull(string $column): self
+  {
+    $this->where[] = "{$column} IS NULL";
+    return $this;
+  }
+
+  public function whereNotNull(string $column): self
+  {
+    $this->where[] = "{$column} IS NOT NULL";
+    return $this;
+  }
+
+  public function whereBetween(string $column, $start, $end): self
+  {
+    $this->where[] = "{$column} BETWEEN ? AND ?";
+    $this->bindings[] = $start;
+    $this->bindings[] = $end;
+    return $this;
+  }
+
+  public function whereLike(string $column, string $pattern): self
+  {
+    $this->where[] = "{$column} LIKE ?";
+    $this->bindings[] = $pattern;
+    return $this;
+  }
+
+  public function whereOr(string $column, string $operator, $value): self
+  {
+    if (empty($this->where)) {
+      return $this->where($column, $operator, $value);
+    }
+    $lastCondition = array_pop($this->where);
+    $lastBinding = array_pop($this->bindings);
+    $this->where[] = "({$lastCondition} OR {$column} {$operator} ?)";
+    $this->bindings[] = $lastBinding;
+    $this->bindings[] = $value;
+    return $this;
+  }
+
+  public function whereOrIn(string $column, array $values): self
+  {
+    if (empty($this->where)) {
+      return $this->whereIn($column, $values);
+    }
+    $lastCondition = array_pop($this->where);
+    $lastBindings = array_splice($this->bindings, -count($values));
+    $placeholders = implode(', ', array_fill(0, count($values), '?'));
+    $this->where[] = "({$lastCondition} OR {$column} IN ({$placeholders}))";
+    $this->bindings = array_merge($this->bindings, $lastBindings, $values);
+    return $this;
+  }
+
+  public function whereAnd(string $column, string $operator, $value): self
+  {
+    if (empty($this->where)) {
+      return $this->where($column, $operator, $value);
+    }
+    $lastCondition = array_pop($this->where);
+    $lastBinding = array_pop($this->bindings);
+    $this->where[] = "({$lastCondition} AND {$column} {$operator} ?)";
+    $this->bindings[] = $lastBinding;
+    $this->bindings[] = $value;
+    return $this;
+  }
+
   public function groupBy(string $column): self
   {
     $this->groupBy = "GROUP BY {$column}";
@@ -81,11 +155,26 @@ class QueryBuilder
     return $this;
   }
 
+  public function offset(int $offset): self
+  {
+    if ($this->limit === null) $this->limit = 1000; // Giới hạn mặc định nếu chưa có limit
+    $this->limit += $offset;
+    return $this;
+  }
+
   public function limit(int $limit): self
   {
     $this->limit = $limit;
     return $this;
   }
+
+  public function paginate(int $perPage, int $page = 1): array
+  {
+    $this->limit($perPage)->offset(($page - 1) * $perPage);
+    return $this->get();
+  }
+
+
 
   // --- THỰC THI (CRUD) ---
 
@@ -93,6 +182,27 @@ class QueryBuilder
   {
     $sql = $this->buildSelect();
     return $this->query($sql, $this->bindings)->fetchAll(PDO::FETCH_OBJ);
+  }
+
+  public function count(): int
+  {
+    $this->columns = ['COUNT(*) AS count'];
+    $sql = $this->buildSelect();
+    $result = $this->query($sql, $this->bindings)->fetch(PDO::FETCH_OBJ);
+    return (int) $result->count;
+  }
+
+  public function exists(): bool
+  {
+    $this->columns = ['1'];
+    $sql = $this->buildSelect();
+    $result = $this->query($sql, $this->bindings)->fetch(PDO::FETCH_ASSOC);
+    return !empty($result);
+  }
+
+  public function all(): array
+  {
+    return $this->get();
   }
 
   public function first()
@@ -133,6 +243,24 @@ class QueryBuilder
     $sql = "UPDATE {$this->table} SET {$setStr}";
     if (!empty($this->where)) $sql .= " WHERE " . implode(' AND ', $this->where);
     return (bool) $this->query($sql, array_merge(array_values($data), $this->bindings));
+  }
+
+  public function updateMany(array $data): bool
+  {
+    if (empty($data)) return false;
+    $sql = "UPDATE {$this->table} SET ";
+    $setStr = "";
+    foreach ($data as $key => $value) $setStr .= "{$key} = ?, ";
+    $sql .= rtrim($setStr, ', ');
+    if (!empty($this->where)) $sql .= " WHERE " . implode(' AND ', $this->where);
+    $allValues = array_merge(array_values($data), $this->bindings);
+    return (bool) $this->query($sql, $allValues);
+  }
+
+  public function deleteById($id): bool
+  {
+    $sql = "DELETE FROM {$this->table} WHERE id = ?";
+    return (bool) $this->query($sql, [$id]);
   }
 
   public function delete(): bool

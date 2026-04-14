@@ -8,7 +8,10 @@ use Core\Request;
 
 class HomeController extends Controller
 {
-  public function index(Request $request) {}
+  public function index(Request $request)
+  {
+    var_dump($request->all());
+  }
   public function create(Request $request)
   {
     $name = $request->input('name');
@@ -19,7 +22,10 @@ class HomeController extends Controller
       'name' => $name
     ]);
   }
-  public function show(Request $request, $id) {}
+  public function show(Request $request, $id)
+  {
+    echo "Show user with ID: {$id}";
+  }
   public function show2($id, $slug) {}
   public function login() {}
 }
