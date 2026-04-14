@@ -3,6 +3,7 @@
 use App\Helpers\Error;
 use Core\Router;
 use Core\Database;
+use Core\Session;
 use Dotenv\Dotenv;
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -13,7 +14,7 @@ $dotenv->load();
 
 Error::handle();
 
-session_start();
+Session::start();
 
 if (filter_var($_ENV['DB'], FILTER_VALIDATE_BOOLEAN)) {
   Database::getConnection();
