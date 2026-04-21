@@ -3,7 +3,8 @@
     "autoload": {
         "psr-4": {
             "Core\\": "core/",
-            "App\\": "app/"
+            "App\\": "app/",
+            "config\\": "config/"
         },
         "files": [
             "app/helpers/functions/dd.php"
