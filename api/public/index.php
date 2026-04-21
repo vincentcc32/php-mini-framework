@@ -1,6 +1,7 @@
 <?php
 
 use App\Helpers\Error;
+use config\Config;
 use Core\Router;
 use Core\Database;
 use Dotenv\Dotenv;
@@ -16,6 +17,8 @@ $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
 Error::handle();
+
+Config::init();
 
 if (filter_var($_ENV['DB'], FILTER_VALIDATE_BOOLEAN)) {
   Database::getConnection();

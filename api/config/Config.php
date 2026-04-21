@@ -4,5 +4,9 @@ namespace config;
 
 class Config
 {
-  public const ADMIN_CODE = 1;
+  public static $ADMIN_CODE;
+  public static function init()
+  {
+    self::$ADMIN_CODE = $_ENV['ADMIN_ROLE'];
+  }
 }

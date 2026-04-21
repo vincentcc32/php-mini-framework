@@ -13,7 +13,7 @@ class HomeController extends Controller
 {
   public function index(Request $request)
   {
-    echo Config::ADMIN_CODE;
+    echo Config::$ADMIN_CODE;
     $user = new User();
     $users = $user->query()->select(['giohang.MaTaiKhoan as ID_GioHang', 'taikhoan.MaTaiKhoan as ID_TaiKhoan'])->join('giohang', 'taikhoan.MaTaiKhoan', '=', 'giohang.MaTaiKhoan')->get();
     dd($users);

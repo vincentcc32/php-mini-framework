@@ -1,6 +1,7 @@
 <?php
 
 use App\Helpers\Error;
+use config\Config;
 use Core\Router;
 use Core\Database;
 use Core\Session;
@@ -13,6 +14,8 @@ $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
 Error::handle();
+
+Config::init();
 
 Session::start();
 
